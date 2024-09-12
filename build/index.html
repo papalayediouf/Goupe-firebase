@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestionnaire de Notes</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        /* Ajoutez vos styles personnalisés ici */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .message-vide {
+            display: none;
+            color: red;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .invalid-feedback {
+            display: none;
+        }
+        .form-control.is-invalid {
+            border-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+
+    <h1 class="my-2 text-center fw-bold">Gestionnaire de Notes</h1>
+
+    <!-- Les cards -->
+    <div class="container my-3">
+        <div class="row d-flex justify-content-between">
+            <div class="col-12 col-md-6 col-lg-3">
+                <p><strong>Nombre d'étudiants :</strong> <span class="nombre-etudiants">0</span></p>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3">
+                <p><strong>Somme des notes :</strong> <span class="somme-notes">0</span></p>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3">
+                <p><strong>Moyenne la plus élevée :</strong> <span class="moyenne-max">0</span></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container my-3 d-flex justify-content-between">
+        <div>
+            <form class="d-flex" role="search">
+                <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search" id="searchInput">
+            </form>
+        </div>
+        <div>
+            <!-- Bouton pour ouvrir le modal d'ajout -->
+            <button class="btn btn-primary mb-4" data-bs-toggle="modal" data-bs-target="#exampleModal">
+                Ajouter un étudiant
+            </button>
+        </div>
+    </div>
+
+    <div class="container mt-5">
+        <!-- Tableau des étudiants -->
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Note</th>
+                    <th>Moyenne</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tableauBody">
+                <!-- Les lignes seront ajoutées dynamiquement ici -->
+            </tbody>
+        </table>
+
+        <!-- Message lorsque le tableau est vide -->
+        <div class="message-vide" id="messageVide">Aucun étudiant à afficher.</div>
+
+        <!-- Pagination -->
+        <div class="pagination-container">
+            <ul class="pagination" id="pagination"></ul>
+        </div>
+    </div>
+
+    <!-- Modal pour afficher les détails de l'étudiant -->
+    <div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailModalLabel">Détails de l'étudiant</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="detailNom"></p>
+                    <p id="detailNote"></p>
+                    <p id="detailMoyenne"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pour ajouter/modifier un étudiant -->
+    <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Ajouter un étudiant</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Formulaire dans le modal -->
+                    <div class="mb-3">
+                        <label for="modalNom" class="form-label">Nom de l'étudiant</label>
+                        <input type="text" class="form-control" id="modalNom" placeholder="Entrez le nom">
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalNote" class="form-label">Note</label>
+                        <input type="number" class="form-control" id="modalNote" placeholder="Entrez la note" min="0" max="20">
+                        <div class="invalid-feedback">La note doit être entre 0 et 20.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalMoyenne" class="form-label">Moyenne</label>
+                        <input type="number" class="form-control" id="modalMoyenne" placeholder="Entrez la moyenne" min="0" max="20">
+                        <div class="invalid-feedback">La moyenne doit être entre 0 et 20.</div>
+                    </div>
+                    <button class="btn btn-primary" id="modalSave">Ajouter</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, updateDoc, doc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
+
+        // Configuration Firebase
+        const configurationFirebase = {
+            apiKey: "AIzaSyCK_dwYMhpZ-yPUY2Cdubn4z-uPlce_UlE",
+            authDomain: "gestionnaire-de-note-en-groupe.firebaseapp.com",
+            projectId: "gestionnaire-de-note-en-groupe",
+            storageBucket: "gestionnaire-de-note-en-groupe.appspot.com",
+            messagingSenderId: "701912210994",
+            appId: "1:701912210994:web:03b619719e4c137035e62b",
+            measurementId: "G-PZDTV2RNCF"
+        };
+
+        // Initialiser Firebase
+        const application = initializeApp(configurationFirebase);
+
+        // Initialiser Firestore
+        const baseDeDonnees = getFirestore(application);
+
+        const nombreEtudiantsElem = document.querySelector(".nombre-etudiants");
+        const sommeNotesElem = document.querySelector(".somme-notes");
+        const moyenneMaxElem = document.querySelector(".moyenne-max");
+        const messageVideElem = document.getElementById("messageVide");
+
+        let totalEtudiants = 0;
+        let sommeNotes = 0;
+        let maxMoyenne = 0;
+        let ligneAModifier = null; // Pour stocker la ligne en cours de modification
+        let pageActuelle = 1;
+        const lignesParPage = 5;
+        let searchQuery = ""; // Variable pour stocker la requête de recherche
+
+        // Fonction pour ajouter/modifier un étudiant
+        document.getElementById('modalSave').addEventListener('click', async () => {
+            const nomEtudiant = document.getElementById("modalNom").value.trim();
+            const noteEtudiant = parseFloat(document.getElementById("modalNote").value);
+            const moyenneEtudiant = parseFloat(document.getElementById("modalMoyenne").value);
+            const noteInput = document.getElementById("modalNote");
+            const moyenneInput = document.getElementById("modalMoyenne");
+
+            let valid = true;
+
+            // Réinitialiser les messages d'erreur
+            noteInput.classList.remove('is-invalid');
+            moyenneInput.classList.remove('is-invalid');
+            noteInput.nextElementSibling.style.display = 'none';
+            moyenneInput.nextElementSibling.style.display = 'none';
+
+            // Validation
+            if (isNaN(noteEtudiant) || noteEtudiant < 0 || noteEtudiant > 20) {
+                noteInput.classList.add('is-invalid');
+                noteInput.nextElementSibling.style.display = 'block';
+                valid = false;
+            }
+
+            if (isNaN(moyenneEtudiant) || moyenneEtudiant < 0 || moyenneEtudiant > 20) {
+                moyenneInput.classList.add('is-invalid');
+                moyenneInput.nextElementSibling.style.display = 'block';
+                valid = false;
+            }
+
+            if (!valid) return; // Empêche la soumission si les entrées ne sont pas valides
+
+            try {
+                if (ligneAModifier) {
+                    // Mise à jour d'un étudiant existant
+                    const idDoc = ligneAModifier.dataset.id;
+                    const ancienneNote = parseFloat(ligneAModifier.dataset.ancienneNote);
+                    const ancienneMoyenne = parseFloat(ligneAModifier.dataset.ancienneMoyenne);
+
+                    await updateDoc(doc(baseDeDonnees, 'etudiants', idDoc), {
+                        nom: nomEtudiant,
+                        note: noteEtudiant,
+                        moyenne: moyenneEtudiant
+                    });
+
+                    ligneAModifier.cells[0].textContent = nomEtudiant;
+                    ligneAModifier.cells[1].textContent = noteEtudiant;
+                    ligneAModifier.cells[2].textContent = moyenneEtudiant;
+
+                    sommeNotes += (noteEtudiant - ancienneNote);
+                    sommeNotesElem.textContent = sommeNotes;
+
+                    if (moyenneEtudiant > maxMoyenne && !Array.from(document.querySelectorAll("#tableauBody tr")).some(l => parseFloat(l.cells[2].textContent) > maxMoyenne)) {
+                        maxMoyenne = Array.from(document.querySelectorAll("#tableauBody tr"))
+                            .map(ligne => parseFloat(ligne.cells[2].textContent))
+                            .reduce((max, curr) => Math.max(max, curr), 0);
+                        moyenneMaxElem.textContent = maxMoyenne;
+                    }
+                } else {
+                    // Ajout d'un nouvel étudiant
+                    const docRef = await addDoc(collection(baseDeDonnees, 'etudiants'), {
+                        nom: nomEtudiant,
+                        note: noteEtudiant,
+                        moyenne: moyenneEtudiant
+                    });
+
+                    const ligneTableau = document.createElement("tr");
+                    ligneTableau.dataset.id = docRef.id;
+                    ligneTableau.innerHTML = `
+                        <td>${nomEtudiant}</td>
+                        <td>${noteEtudiant}</td>
+                        <td>${moyenneEtudiant}</td>
+                        <td>
+                            <button class="btn btn-info btn-sm" onclick="voirDetails(this)"><i class="bi bi-eye-fill"></i></button>
+                            <button class="btn btn-warning btn-sm" onclick="modifierEtudiant(this)"><i class="bi bi-pencil-square"></i></button>
+                            <button class="btn btn-danger btn-sm" onclick="supprimerEtudiant(this)"><i class="bi bi-trash3"></i></button>
+                        </td>
+                    `;
+
+                    // Insérer la nouvelle ligne en haut du tableau
+                    document.getElementById("tableauBody").insertBefore(ligneTableau, document.getElementById("tableauBody").firstChild);
+
+                    // Mise à jour des statistiques
+                    totalEtudiants++;
+                    nombreEtudiantsElem.textContent = totalEtudiants;
+                    sommeNotes += noteEtudiant;
+                    sommeNotesElem.textContent = sommeNotes;
+
+                    if (moyenneEtudiant > maxMoyenne) {
+                        maxMoyenne = moyenneEtudiant;
+                        moyenneMaxElem.textContent = maxMoyenne;
+                    }
+                }
+
+                // Réinitialiser le formulaire et fermer le modal
+                reinitialiserFormulaire();
+                const modal = bootstrap.Modal.getInstance(document.getElementById('exampleModal'));
+                modal.hide();
+                mettreAJourTableau();
+            } catch (error) {
+                console.error("Erreur lors de l'ajout/modification de l'étudiant : ", error);
+            }
+        });
+
+        // Fonction pour afficher les étudiants en fonction de la page actuelle
+        function mettreAJourTableau() {
+            const lignes = Array.from(document.querySelectorAll("#tableauBody tr"));
+            const totalLignes = lignes.length;
+            const totalPages = Math.ceil(totalLignes / lignesParPage);
+
+            // Filtrer les lignes en fonction de la recherche
+            const lignesFiltres = lignes.filter(ligne => {
+                const nom = ligne.cells[0].textContent.toLowerCase();
+                return nom.includes(searchQuery.toLowerCase());
+            });
+
+            // Afficher les lignes en fonction de la page actuelle
+            lignes.forEach((ligne) => {
+                ligne.style.display = "none"; // Masquer toutes les lignes
+            });
+
+            lignesFiltres.forEach((ligne, index) => {
+                if (index >= (pageActuelle - 1) * lignesParPage && index < pageActuelle * lignesParPage) {
+                    ligne.style.display = ""; // Afficher les lignes pour la page actuelle
+                }
+            });
+
+            // Afficher ou masquer le message lorsque le tableau est vide
+            if (lignesFiltres.length === 0) {
+                messageVideElem.style.display = "block";
+            } else {
+                messageVideElem.style.display = "none";
+            }
+
+            // Mettre à jour les boutons de pagination
+            const pagination = document.getElementById("pagination");
+            pagination.innerHTML = "";
+
+            for (let i = 1; i <= Math.ceil(lignesFiltres.length / lignesParPage); i++) {
+                const li = document.createElement("li");
+                li.className = `page-item ${i === pageActuelle ? "active" : ""}`;
+                li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+                li.addEventListener('click', () => {
+                    pageActuelle = i;
+                    mettreAJourTableau();
+                });
+                pagination.appendChild(li);
+            }
+        }
+
+        // Fonction pour modifier un étudiant
+        window.modifierEtudiant = function(bouton) {
+            ligneAModifier = bouton.closest("tr");
+            document.getElementById("modalNom").value = ligneAModifier.cells[0].textContent;
+            document.getElementById("modalNote").value = ligneAModifier.cells[1].textContent;
+            document.getElementById("modalMoyenne").value = ligneAModifier.cells[2].textContent;
+
+            // Stocker les anciennes valeurs pour les calculs lors de la modification
+            ligneAModifier.dataset.ancienneNote = ligneAModifier.cells[1].textContent;
+            ligneAModifier.dataset.ancienneMoyenne = ligneAModifier.cells[2].textContent;
+
+            // Changer le titre du modal et le bouton d'action
+            document.getElementById("exampleModalLabel").textContent = "Modifier l'étudiant";
+            document.getElementById("modalSave").textContent = "Modifier";
+
+            // Ouvrir le modal
+            const modal = new bootstrap.Modal(document.getElementById("exampleModal"));
+            modal.show();
+        }
+
+        // Fonction pour supprimer un étudiant
+        window.supprimerEtudiant = async function(bouton) {
+            const ligne = bouton.closest("tr");
+            const idDoc = ligne.dataset.id;
+            const note = parseFloat(ligne.cells[1].textContent);
+            const moyenne = parseFloat(ligne.cells[2].textContent);
+
+            try {
+                await deleteDoc(doc(baseDeDonnees, 'etudiants', idDoc));
+                ligne.remove();
+
+                totalEtudiants--;
+                nombreEtudiantsElem.textContent = totalEtudiants;
+
+                sommeNotes -= note;
+                sommeNotesElem.textContent = sommeNotes;
+
+                if (moyenne === maxMoyenne) {
+                    maxMoyenne = Array.from(document.querySelectorAll("#tableauBody tr"))
+                        .map(ligne => parseFloat(ligne.cells[2].textContent))
+                        .reduce((max, curr) => Math.max(max, curr), 0);
+                    moyenneMaxElem.textContent = maxMoyenne;
+                }
+
+                mettreAJourTableau();
+            } catch (error) {
+                console.error("Erreur lors de la suppression de l'étudiant : ", error);
+            }
+        }
+
+        // Fonction pour voir les détails
+        window.voirDetails = function(bouton) {
+            const ligne = bouton.closest("tr");
+            const nom = ligne.cells[0].textContent;
+            const note = ligne.cells[1].textContent;
+            const moyenne = ligne.cells[2].textContent;
+
+            document.getElementById("detailNom").textContent = `Nom: ${nom}`;
+            document.getElementById("detailNote").textContent = `Note: ${note}`;
+            document.getElementById("detailMoyenne").textContent = `Moyenne: ${moyenne}`;
+
+            const modal = new bootstrap.Modal(document.getElementById("detailModal"));
+            modal.show();
+        }
+
+        // Fonction pour réinitialiser le formulaire
+        function reinitialiserFormulaire() {
+            document.getElementById("modalNom").value = "";
+            document.getElementById("modalNote").value = "";
+            document.getElementById("modalMoyenne").value = "";
+
+            // Réinitialiser le titre du modal et le bouton d'action
+            document.getElementById("exampleModalLabel").textContent = "Ajouter un étudiant";
+            document.getElementById("modalSave").textContent = "Ajouter";
+            ligneAModifier = null; // Réinitialiser la ligne à éditer
+        }
+
+        // Gestionnaire d'événement pour la recherche
+        document.getElementById('searchInput').addEventListener('input', function() {
+            searchQuery = this.value;
+            mettreAJourTableau();
+        });
+
+        // Initialiser le tableau en récupérant les données de Firestore
+        async function initialiserTableau() {
+            // Ajoutez ici la récupération des données de Firestore et l'ajout des lignes au tableau
+            // Exemple :
+            /*
+            const querySnapshot = await getDocs(collection(baseDeDonnees, "etudiants"));
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                // Ajouter les lignes au tableau
+            });
+            */
+            mettreAJourTableau(); // Mettre à jour l'affichage du tableau
+        }
+
+        // Appel initial pour charger les données
+        initialiserTableau();
+    </script>
+</body>
+</html>
