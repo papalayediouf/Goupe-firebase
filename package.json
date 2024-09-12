@@ -1,0 +1,28 @@
+{
+  "name": "tache-de-groupe-note-firbase",
+  "version": "1.0.0",
+  "description": "deploi",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/papalayediouf/Goupe-firebase.git"
+  },
+  "keywords": [
+    "Projet",
+    "en",
+    "goupe",
+    "ges-note"
+  ],
+  "author": "Papa Abdoulaye Diouf",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/papalayediouf/Goupe-firebase/issues"
+  },
+  "homepage": "https://github.com/papalayediouf/Goupe-firebase#readme",
+  "dependencies": {
+    "package": "^1.0.1"
+  }
+}
